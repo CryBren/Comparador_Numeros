@@ -73,6 +73,27 @@ def normalizar(proveedor):
 
     return equivalencias.get(txt, txt)
 
+# =====================================================
+# VALIDAR NÚMERO
+# =====================================================
+
+def validar_numero(numero):
+
+    numero = str(numero).strip()
+
+    # Quitar .0 que agrega Excel
+    if numero.endswith(".0"):
+        numero = numero[:-2]
+
+    # Dejar solo dígitos
+    numero = re.sub(r"\D", "", numero)
+
+    # Debe tener exactamente 10 dígitos
+    if len(numero) != 10:
+        return None
+
+    return numero
+
 
 # =====================================================
 # CONSULTA IFT
@@ -270,33 +291,59 @@ try:
 
     proveedores_ift = []
     coincidencias = []
+    observaciones = []
 
     total = len(df)
 
+    # ==========================
+    # CONTADORES
+    # ==========================
+
+    validos = 0
+    invalidos = 0
+    coinciden = 0
+    no_coinciden = 0
+    errores_consulta = 0
+
     for i, row in df.iterrows():
 
-        numero = str(
-            row[col_numero]
-        ).strip()
-
-        if numero.endswith(".0"):
-            numero = numero[:-2]
-
-        numero = re.sub(
-            r"\D",
-            "",
-            numero
-        )
+        numero = validar_numero(row[col_numero])
 
         print()
-        print(
-            f"[{i+1}/{total}] {numero}"
-        )
+        print(f"[{i+1}/{total}]")
+
+        # ==========================
+        # VALIDACIÓN
+        # ==========================
+
+        if numero is None:
+
+            numero_original = str(row[col_numero])
+
+            print(f"Número inválido: {numero_original}")
+
+            invalidos += 1
+
+            proveedores_ift.append("")
+            coincidencias.append("NO")
+            observaciones.append("Número inválido")
+
+            continue
+
+        print(numero)
+        validos += 1
+
+        # ==========================
+        # CONSULTAR IFT
+        # ==========================
 
         proveedor_ift = obtener_proveedor(
             driver,
             numero
         )
+
+        if proveedor_ift == "":
+            errores_consulta += 1
 
         proveedores_ift.append(
             proveedor_ift
@@ -312,26 +359,37 @@ try:
 
         coincide = (
             "SI"
-            if proveedor_excel ==
-               proveedor_ift_norm
+            if proveedor_excel == proveedor_ift_norm
             else "NO"
         )
+
+        if coincide == "SI":
+            coinciden += 1
+        else:
+            no_coinciden += 1
 
         coincidencias.append(
             coincide
         )
 
+        if proveedor_ift == "":
+            observaciones.append("No fue posible obtener proveedor")
+        else:
+            observaciones.append("")
+
         print(
-            f"{numero} -> "
-            f"'{proveedor_ift}'"
+            f"{numero} -> '{proveedor_ift}'"
         )
+
+    # ==========================
+    # EXPORTAR
+    # ==========================
 
     df["Proveedor_IFT"] = proveedores_ift
     df["Coincide"] = coincidencias
+    df["Observaciones"] = observaciones
 
-    archivo_salida = (
-        "comparacion_ift.xlsx"
-    )
+    archivo_salida = "comparacion_ift.xlsx"
 
     df.to_excel(
         archivo_salida,
@@ -339,11 +397,18 @@ try:
     )
 
     print()
-    print("Proceso terminado")
-    print(
-        f"Archivo generado: "
-        f"{archivo_salida}"
-    )
+    print("=" * 45)
+    print("        RESUMEN DEL PROCESO")
+    print("=" * 45)
+    print(f"Total de registros        : {total}")
+    print(f"Números válidos           : {validos}")
+    print(f"Números inválidos         : {invalidos}")
+    print(f"Consultas sin respuesta   : {errores_consulta}")
+    print(f"Coincidencias             : {coinciden}")
+    print(f"No coinciden              : {no_coinciden}")
+    print("=" * 45)
+    print(f"Archivo generado: {archivo_salida}")
+    print("=" * 45)
 
 finally:
 
