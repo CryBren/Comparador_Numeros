@@ -107,7 +107,7 @@ def obtener_proveedor(driver, numero):
 
             driver.get(URL)
 
-            wait = WebDriverWait(driver, 60)
+            wait = WebDriverWait(driver, 20)
 
             campo = wait.until(
                 EC.presence_of_element_located(
@@ -142,6 +142,16 @@ def obtener_proveedor(driver, numero):
                 pass
 
             html_page = driver.page_source
+
+            # ==========================================
+            # NÚMERO NO ENCONTRADO
+            # ==========================================
+
+            if "Número no encontrado" in html_page:
+
+                print(f"IFT: Número no encontrado ({numero})")
+
+                return "NO ENCONTRADO"
 
             # Extraer proveedor
             patron = (
